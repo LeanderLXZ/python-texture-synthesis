@@ -236,7 +236,7 @@ class TextureSynthesis(object):
 
 if __name__ == '__main__':
     
-    texture_paths = ['texture1.jpg', 'texture2.jpg', 'texture3.jpg']
+    texture_paths = ['texture4.jpg', 'texture5.jpg', 'texture6.jpg']
     window_sizes = [[3, 3], [5, 5], [11, 11], [15, 15], [21, 21]]
     
     for texture_path in texture_paths:
