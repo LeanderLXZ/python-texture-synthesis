@@ -2,4 +2,5 @@
 # *.avi
 # *.gif
 ._*
-.DS_Store
+*.DS_Store
+*__pycache__/

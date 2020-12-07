@@ -1,6 +1,8 @@
 import time
+import os
 import numpy as np
 import scipy.stats as st
+from tqdm import tqdm
 from random import randint
 from math import floor
 from skimage import io
@@ -9,14 +11,18 @@ from PIL import Image
 class TextureSynthesis(object):
     
     def __init__(self,
+                 file_name,
                  texture_path,
                  save_path,
+                 input_size,
                  window_size,
                  output_size,
                  apply_gaussian=True):
         
+        self.file_name = file_name
         self.texture_path = texture_path
         self.save_path = save_path
+        self.input_size = input_size
         self.window_size = window_size
         for i in range(2):
             if self.window_size[i] % 2 == 0:
@@ -25,14 +31,28 @@ class TextureSynthesis(object):
         self.apply_gaussian = apply_gaussian
         self.texture_img = self.load_texture_img()
     
+    def imresize(self, image, size):
+        im = Image.fromarray(image)
+        return np.array(im.resize(size, Image.BICUBIC))
+    
     def load_texture_img(self):
-        texture_img = io.imread(self.texture_path) / 255.0
+        print('Loading image: ', self.texture_path)
+        texture_img = io.imread(self.texture_path)
+        texture_img = self.imresize(texture_img, self.input_size)
+
+        img = Image.fromarray(np.uint8(texture_img))
+        os.makedirs(self.save_path, exist_ok=True)
+        img.save(os.path.join(self.save_path, self.file_name[:-4] + '_0.jpg'))
+
+        texture_img = texture_img / 255.0
+        
         # Remove Channels if # of channels > 3
         if (np.shape(texture_img)[-1] > 3):
             texture_img = texture_img[:,:,:3]
         # Convert Grayscale to RGB
         elif (len(np.shape(texture_img)) == 2):
             texture_img = np.repeat(texture_img[np.newaxis, :, :], 3, axis=0)
+        
         return texture_img
     
     def generate_canvas(self):
@@ -163,13 +183,10 @@ class TextureSynthesis(object):
         # Precalculate the array of examples patches from the texture image
         texture_patches = self.get_texture_patches()
         
-        # Find pixels that need resolution
-        resolved_pixels = 3 * 3
-        pixels_to_resolve = self.output_size[0]*self.output_size[1]
-        
         # Initialize a map for best candidates to be resolved
         candidate_map = np.zeros(np.shape(filled_map))
-        while resolved_pixels < pixels_to_resolve:
+        for _ in tqdm(range(9, self.output_size[0] * self.output_size[1])):
+            
             # Update the candidate map
             self.update_candidate_map(candidate_map, filled_map)
 
@@ -221,17 +238,19 @@ class TextureSynthesis(object):
             # Resolve pixel
             canvas[candidate_row, candidate_col, :] = chosen_pixel
             filled_map[candidate_row, candidate_col] = 1
-            resolved_pixels += 1
 
         img = Image.fromarray(np.uint8(canvas*255))
-        file_name = '{}_{}x{}_{}_result.jpg'.format(
-            self.texture_path[:-4],
-            self.window_size[0],
-            self.window_size[1],
-            1 if self.apply_gaussian else 0)
-        img.save(self.save_path + file_name)
+        # save_file_name = '{}_{}x{}_{}_result.jpg'.format(
+        #     self.file_name[:-4],
+        #     self.window_size[0],
+        #     self.window_size[1],
+        #     1 if self.apply_gaussian else 0)
+        save_file_name = self.file_name[:-4] + '_1.jpg'
+        
+        os.makedirs(self.save_path, exist_ok=True)
+        img.save(os.path.join(self.save_path, save_file_name))
         print('Runtime of {}: {:.2f}'.format(
-            file_name, time.time() - start_time))
+            save_file_name, time.time() - start_time))
 
 
 if __name__ == '__main__':
@@ -244,6 +263,7 @@ if __name__ == '__main__':
             TextureSynthesis(
                 texture_path=texture_path,
                 save_path='./results/',
+                input_size=[50, 50],
                 window_size=window_size,
                 output_size=[100, 100],
                 apply_gaussian=True
